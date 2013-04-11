@@ -1,0 +1,3 @@
+EukaryotaEukaryota1:At4g38780.1,At1g80070.1,Fungi_Metazoa_group1
+EukaryotaEukaryota2:At1g50030.1,Euarchontoglires1
+EukaryotaEukaryota3:At3g11130.1,At3g08530.1,Fungi_Metazoa_group5
