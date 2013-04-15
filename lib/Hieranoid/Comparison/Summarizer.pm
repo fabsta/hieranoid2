@@ -200,8 +200,13 @@ sub alignAndConsense{
         
         my %groupPredictionHash;
         #$innerNode->orthologGroups->get_group2expandedIDsHash($innerNode,\%groupPredictionHash);
-        #$innerNode->orthologGroups->get_alltreeleafNodes($innerNode,\%groupPredictionHash);
-		$innerNode->orthologGroups->get_cluster2genes_mappings(\%groupPredictionHash); 
+        if($self->configuration->storeType eq 'file'){
+			$innerNode->orthologGroups->get_alltreeleafNodes($innerNode,\%groupPredictionHash);
+		}
+		elsif($self->configuration->storeType eq 'graphDB'){
+			$innerNode->orthologGroups->get_cluster2genes_mappings(\%groupPredictionHash); 
+		}
+		else{ ERROR("unsuitable option for storeType. Please check");}
 		print "\n and we found ".keys(%groupPredictionHash)." cluster roots\n";
         my %ID2sequencesHash;
         
@@ -233,17 +238,22 @@ sub alignAndConsense{
                         # range 1  | range 2 | range 3 | 
                         # 1-20     | 21-40   | 41-60   |
                         for (1 .. $self->configuration->available_nodes){
+        						my ($bsub_fh, $bsub_file) = tempfile(UNLINK => 0);
                                 print "\tstart sub process $_\n";
-                                my $parallelSimilaritySearch;
+								my $job_number = $_;
+                                my $parallelSimilaritySearch = $self->configuration->perl." $0 -j $_ -n ".$parentNode->name." -a summarize -c ".$self->configuration->configurationFile."";
+                                print "\t$parallelSimilaritySearch\n";
                                 if($self->configuration->computationMode eq 'cluster'){
-                                        $parallelSimilaritySearch = $self->configuration->sshCluster.""
+									
+                                       write_to_file({text => $parallelSimilaritySearch, file_name => $bsub_file}); 
+									   my $submit_cmd = $self->configuration->sshCluster." -J Hieranoid.$job_number   $bsub_file";
+									   system($submit_cmd);
+										
                                 }
                                 else{
-                                        $parallelSimilaritySearch = $self->configuration->perl." $0 -j $_ -n ".$parentNode->name." -a summarize -c ".$self->configuration->configurationFile."";
+									system("$parallelSimilaritySearch &");
                                 }
-                                print "\t$parallelSimilaritySearch\n";
                                 #exit;
-                                system("$parallelSimilaritySearch &");
                                 push(@jobStarted_files,$parentNode->fileInformation->outputDirectory."/process_prepareAnalysis_started.$_");
                                 push(@jobFinished_files,$parentNode->fileInformation->outputDirectory."/process_prepareAnalysis_finished.$_");
                         }
@@ -356,7 +366,7 @@ sub alignAndConsense{
                                          #DEBUG("\tCurrent ortholog group: $og ( $current_number_of_og / $number_of_ogs_total)\n");
 				
                                          foreach my $current_id(split(/,/,$groupPredictionHash{$og})){
-                                                 print "\tsearching for $current_id\n";
+                                                 #print "\tsearching for $current_id\n";
                                                  DEBUG("\tsearching for $current_id\n");
                                                  next if $current_id eq ',';
                                                  my $sequence = q();

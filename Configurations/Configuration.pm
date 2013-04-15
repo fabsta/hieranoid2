@@ -36,7 +36,7 @@ push(@INC,"$rootDirectory/lib");
 	
 	## File system or graph/mysql db
 	# options are: "file","graph","mysql"
-	$storeType = "graph";
+	$storeType = "file";
 
 	## Tree File
 	# Specify guide tree file
@@ -115,7 +115,7 @@ push(@INC,"$rootDirectory/lib");
         # comma-separated genes: 'groupFile'
         # OrthoXML format : 'orthoxml'
 		# graphdb : 'graphDB'
-        $orthologGroupsFormat = 'graphDB';
+        $orthologGroupsFormat = 'groupFile';
         
 # Similarity Search        
 		# Tool to perform similarity searches
@@ -135,15 +135,15 @@ push(@INC,"$rootDirectory/lib");
 ### Multi-Core specific options
 	# Parallel
 	# If > 1 node is available, Hieranoid will be started parallel
-    	$available_nodes = 2;
+    	$available_nodes = 1;
     	# Time for the hieranoid master process to wait for child processes to finish
     	$wallTime = 150000;
 	## COMPUTATION ON CLUSTER	
 		# "single" - single core 
 		# "multi" - multi-core
 		# "cluster" - (SGE) cluster
-		$computationMode = "single";
-		$sshCluster = "ssh ferlin.pdc.kth.se";
+		$computationMode = "cluster";
+		$sshCluster = "bsub -q research-rh6 ";
 		## multi-core
 		$number_of_cores = "1";       
 		## NUMBER OF CLUSTER JOBS

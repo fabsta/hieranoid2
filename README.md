@@ -1,7 +1,7 @@
-Hieranoid
+Hieranoid 2
 Hierarchical orthology inference
 
-This software is freely available at https://github.com/fabsta/Hieranoid 
+This software is freely available at https://github.com/fabsta/hieranoid2
 
 Please read the COPYING file before using this software.  
 

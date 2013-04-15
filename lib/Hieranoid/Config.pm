@@ -44,6 +44,7 @@ has 'available_nodes', is => 'rw', isa => 'Str';
 has 'wallTime', is => 'rw', isa => 'Str';   
 has 'jobNumber', is => 'rw', isa => 'Str';   
 has 'type_of_analysis', is => 'rw', isa => 'Str';   
+has 'sshCluster', is => 'rw', isa => 'Str';   
 ##### Tools
 # Tree
 #has 'fasttree', is => 'rw', isa => 'Str';   
@@ -138,6 +139,7 @@ sub BUILD {
       $self->speciesFilesDirectory($Configuration::speciesFilesDirectory);
       $self->hieranoid_log($Configuration::hieranoid_log);
       $self->timeFile($Configuration::timeFile);
+      $self->sshCluster($Configuration::sshCluster);
       $self->inparanoid_log($Configuration::inparanoid_log);
       $self->tmpDir($Configuration::tmpDir);
       #return 1;

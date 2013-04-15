@@ -136,7 +136,7 @@ MAIN:
 	  {
 		if ( !-e $species_folder || !-s $species_folder )
 		  {
-			print "Sequence folderprovided, but it does not exist/is empty\n";
+			print "Sequence folder provided, but it does not exist/is empty\n";
 		  }
 		$hieranoidConfiguration->speciesFilesDirectory($species_folder);
 	  }

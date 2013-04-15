@@ -319,16 +319,23 @@ sub start{
                         # range 1  | range 2 | range 3 | 
                         # 1-20     | 21-40   | 41-60   |
                         for (1 .. $self->configuration->available_nodes){
+        							my ($bsub_fh, $bsub_file) = tempfile(UNLINK => 0);
                                     print "\tstart sub process $_\n";
-                                    my $parallelSimilaritySearch;
-                                    if($self->configuration->computationMode eq 'cluster'){
-                                                $parallelSimilaritySearch = $self->configuration->sshCluster.""
-                                    }
-                                    else{
-                                                $parallelSimilaritySearch = $self->configuration->perl." $0 -j $_ -n ".$self->nodeObject->name." -a orthologySearch -c ".$self->configuration->configurationFile."";
-                                    }
-                                    print "\t$parallelSimilaritySearch\n";
-                                    system("$parallelSimilaritySearch &");
+									my $job_number = $_;
+                                	my $parallelSimilaritySearch = $self->configuration->perl." $0 -j $_ -n ".$self->nodeObject->name." -a orthologySearch -c ".$self->configuration->configurationFile.""; 
+                                	print "\t$parallelSimilaritySearch\n";
+                                	if($self->configuration->computationMode eq 'cluster'){
+									
+                                       write_to_file({text => $parallelSimilaritySearch, file_name => $bsub_file}); 
+									   my $submit_cmd = $self->configuration->sshCluster." -J Hieranoid.OS.$job_number   $bsub_file";
+									   print "$submit_cmd\n";
+										system($submit_cmd);
+										
+                                	}
+                                	else{
+										system("$parallelSimilaritySearch &");
+                                	}
+                                    #system("$parallelSimilaritySearch &");
                                     #exit;
                                     
                                     push(@jobStarted_files,$self->nodeObject->fileInformation->outputDirectory."/process_orthologySearch_started.$_");
@@ -520,7 +527,7 @@ sub singleBlastSearch{
                         DEBUG("call: $blast_call");
                         #print "call: $blast_call\n";
                         my @blast_error = `$blast_call`;
-			system($blast_call);                        
+						#system($blast_call);                        
                         if(!-e $ublast_output_tmp || !-s $ublast_output_tmp){
                                 print "\tPrefiltering blast resulted in no hits (file: $ublast_output_tmp)\n$blast_call\n";
                                 ERROR("\tPrefiltering blast resulted in no hits (file: $ublast_output_tmp)\n$blast_call\n");
@@ -848,6 +855,31 @@ sub getFastaFileSplit{
 
 }
 
+=item write_to_file()
+        Retrieves all IDS from current ortholog groups
+        # adds allowed groups from left/right daughter
+
+ Title   : write_to_file
+ Usage   : $self->summarizer->summarizeInformation($self->nodeObject);
+ Function: Summarizes two daughter nodes 
+ Returns : 1 on success
+ Args: -
+
+=cut
+sub write_to_file{
+	#### PARAMETER VARIABLES
+	my ($arg_ref) = @_;
+	my $file_name = $arg_ref->{file_name};
+	my $text      = $arg_ref->{text};
+	### OPENING FILE
+	open my $out, '>', $file_name
+	  or croak "Couldn't open '$file_name': $OS_ERROR";
+	### Writing file
+	print {$out} $text;
+	### CLOSING FILE
+	close $out or croak "Couldn't close '$file_name': $OS_ERROR";
+	return 1;
+}
 
 =item attach_to_file()
 
