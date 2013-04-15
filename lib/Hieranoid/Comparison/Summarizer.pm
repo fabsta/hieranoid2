@@ -14,6 +14,7 @@ Abstract class to handle how orthologous group are summarized
 =head1 METHODS
 
 =cut
+use REST::Neo4p; 
 use Moose::Role;
 use Carp;
 use Bio::TreeIO;
@@ -30,6 +31,7 @@ use Data::Dumper;
 use Benchmark;
 use File::Temp qw/ tempfile tempdir /;
 use Hieranoid::Tree::InnerNode;
+use Hieranoid::DB::GraphDB;
 use Hieranoid::FileInformation;
 use Bio::AlignIO;
 
@@ -198,9 +200,9 @@ sub alignAndConsense{
         
         my %groupPredictionHash;
         #$innerNode->orthologGroups->get_group2expandedIDsHash($innerNode,\%groupPredictionHash);
-        $innerNode->orthologGroups->get_alltreeleafNodes($innerNode,\%groupPredictionHash);
-        #print Dumper %groupPredictionHash;
-        #exit;
+        #$innerNode->orthologGroups->get_alltreeleafNodes($innerNode,\%groupPredictionHash);
+		$innerNode->orthologGroups->get_cluster2genes_mappings(\%groupPredictionHash); 
+		print "\n and we found ".keys(%groupPredictionHash)." cluster roots\n";
         my %ID2sequencesHash;
         
         #print "\tTrying to collect sequences from ".$innerNode->fileInformation->sequenceSearchInputFile."\n";
@@ -352,9 +354,10 @@ sub alignAndConsense{
                                          ### FILE CONTAINS:
                                          # speciesname04 --> member1, member2,...,memberx
                                          #DEBUG("\tCurrent ortholog group: $og ( $current_number_of_og / $number_of_ogs_total)\n");
+				
                                          foreach my $current_id(split(/,/,$groupPredictionHash{$og})){
-                                                 #print "\tsearching for $current_id\n";
-                                                 #DEBUG("\tsearching for $current_id\n");
+                                                 print "\tsearching for $current_id\n";
+                                                 DEBUG("\tsearching for $current_id\n");
                                                  next if $current_id eq ',';
                                                  my $sequence = q();
                                                  if(exists $duplicateSequencesInGroupHash{$current_id}){
@@ -505,10 +508,11 @@ sub addNonGroupSequences{
 
         # get all current groups : as predicted by Inparanoid
         my %all_used_IDs = ();
-
+	    return 1;
         #print "\tadding predictions for node ".$innerNode->leftDaughter->name."\n";
     # left Daughter
         if($innerNode->leftDaughterType eq 'innerNode'){
+				
                 #print "\ttrying to add sequences to ".$innerNode->fileInformation->sequenceSearchInputFile."\n";
                 $innerNode->orthologGroups->getAllUsedIDS($innerNode->leftDaughter,\%all_used_IDs);
                 if(!keys %all_used_IDs){
@@ -551,6 +555,7 @@ sub addDaughterNonGroupSequences{
         my ($self,$daughterNode) = (@_);
         my $sequences2add;
         my %all_used_IDs = ();
+		return 1;
         $daughterNode->orthologGroups->getAllUsedIDS($daughterNode,\%all_used_IDs);
         if(!keys(%all_used_IDs)){
                 ERROR("Could not get all used IDs for node ".$daughterNode->name."\n");
@@ -691,7 +696,7 @@ sub addPredictions{
 
         # get all current groups : as predicted by Inparanoid
         my %all_used_IDs = ();
-
+		return 1;
         $innerNode->orthologGroups->getAllUsedIDS($innerNode,\%all_used_IDs);
         if(!keys %all_used_IDs){
                 ERROR("\tProblem getting current orthologous groups\n"); 
@@ -773,15 +778,18 @@ sub addPredictions{
 sub saveOrthologyPredictions{
         my ($self,$innerNode) = (@_);
         if($self->configuration->orthologGroupsFormat eq 'groupFile'){
-        	$self->orthologyPredictions2OGs($innerNode); 
+			$self->orthologyPredictions2OGs($innerNode); 
         }
+		elsif($self->configuration->orthologGroupsFormat eq 'graphDB'){
+			$self->orthologyPredictions2GraphDB($innerNode); 
+		}
         else
         {
         	$self->orthologyPredictions2OGsOrthoXML($innerNode);
         }
         $self->addPredictions($innerNode) if $self->configuration->addNonMatchingSequences eq 'true';
         
-        $innerNode->orthologGroups->convert2expandedGroupFile($innerNode); 
+        #$innerNode->orthologGroups->convert2expandedGroupFile($innerNode); 
 }
 =item orthologyPredictions2OGs()
         Retrieves all IDS from current ortholog groups
@@ -797,7 +805,8 @@ sub saveOrthologyPredictions{
 sub orthologyPredictions2OGs{
         my ($self,$innerNode) =(@_);
         my (%og_assignments1_hash,%og_assignments2_hash);
-        my $mapping_cat_cmd = "cat ";
+        my $write_graphdb = 1;
+		my $mapping_cat_cmd = "cat ";
         DEBUG("\t\tSummarizing node information: ".$innerNode->name."\n");
         # e.g. ! Homininae.groups.txt
         if(!-e $innerNode->orthologGroups->orthologyPredictionFile && !-s $innerNode->orthologGroups->orthologyPredictionFile){
@@ -1040,6 +1049,151 @@ sub orthologyPredictions2OGs{
                 copy($innerNode->orthologGroups->groupsFile,$innerNode->orthologGroups->mappingsFile) or ERROR("Could not copy groupsFile to mappingsFile\n");
 		}
 		unlink($innerNode->orthologGroups->originalOrthologyPredictionFile);
+        return 1;
+}
+
+=item orthologyPredictions2GraphDB()
+        Retrieves all IDS from current ortholog groups
+        # adds allowed groups from left/right daughter
+
+ Title   : orthologyPredictions2GraphDB
+ Usage   : $self->summarizer->summarizeInformation($self->nodeObject);
+ Function: Summarizes two daughter nodes 
+ Returns : 1 on success
+ Args: -
+
+=cut
+sub orthologyPredictions2GraphDB{
+        my ($self,$innerNode) =(@_);
+        my (%og_assignments1_hash,%og_assignments2_hash);
+		my $mapping_cat_cmd = "cat ";
+        DEBUG("\t\tSummarizing node information: ".$innerNode->name."\n");
+        # e.g. ! Homininae.groups.txt
+        if(!-e $innerNode->orthologGroups->orthologyPredictionFile && !-s $innerNode->orthologGroups->orthologyPredictionFile){
+                WARN("\t\tNo orthology predictions found\n");
+                return 0;
+        }
+		# Check if we can skip this step.
+		# not sure which tables will contain this information in the DB
+
+        # e.g. Homininae.groups.txt
+        if(-e $innerNode->orthologGroups->originalOrthologyPredictionFile && -s $innerNode->orthologGroups->originalOrthologyPredictionFile){
+                DEBUG("\tconverted orthology predictions already exist. Skipping\n");
+                return 1;
+        }
+        # Make a copy of original Inparanoid predictions
+        copy($innerNode->orthologGroups->orthologyPredictionFile, $innerNode->orthologGroups->originalOrthologyPredictionFile) || die "Could not copy to ".$innerNode->orthologGroups->originalOrthologyPredictionFile."\n";
+        my %all_og2id_hash;
+        my %all_id_mappings;
+        my %ID2Tree_mappings;
+        my $previous_og;
+        my @array_of_ids_for_og;  
+        my %og_to_ids;
+        my $treeString;
+        my $treeFile;
+        my ($clade1,$clade2) = (-1,-1);
+        my (@clade1species, @clade2species);
+        my $previous_bitscore = -1;
+		my $cluster_counter = 1;	
+		# NEW
+		my @genes4group;
+		my $current_cluster_root;
+		REST::Neo4p->connect('http://127.0.0.1:7474');
+		DEBUG( "Checking if tree_type relationship exists? ");	
+		my $tree_types = REST::Neo4p->get_index_by_name('tree_types','relationship');
+		if(!$tree_types){
+				DEBUG( "no\n");
+				$tree_types = REST::Neo4p::Index->new('relationship','tree_types');;
+		}
+		else{		DEBUG("yes\n");}
+		DEBUG("Checking if cluster_roots exists? ");	
+		my $cluster_roots = REST::Neo4p->get_index_by_name('cluster_roots','node');
+		if(!$cluster_roots){
+			DEBUG( "no\n");
+			$cluster_roots = REST::Neo4p::Index->new('node','cluster_roots');;
+		}
+		else{	DEBUG("yes\n");}
+	
+		DEBUG("Checking if node_index exists? ");	
+		my $node_index = REST::Neo4p->get_index_by_name('node_index','node');
+		if(!$node_index){
+			DEBUG( "no\n");
+			$node_index = REST::Neo4p::Index->new('node','node_index');;
+		}
+		else{	DEBUG("yes\n");}
+
+        my ($InparanoidSQLFile, $GroupsFile, $GroupsFileResolved, $MappingsFile);
+        open my $INPUT_FH, '<', $innerNode->orthologGroups->originalOrthologyPredictionFile or die "Couldn't open '".$innerNode->orthologGroups->originalOrthologyPredictionFile."' $!\n";
+        while(<$INPUT_FH>){
+                ## e.g.
+                # Homininae1	11100	Pan_troglodytes.fa	1.000	ENSPTRP00000031469
+				# Homininae1	11100	Homo_sapiens.fa	1.000	ENSP00000358400
+				# Homininae2	7694	Pan_troglodytes.fa	1.000	ENSPTRP00000046739
+				# Homininae2	7694	Homo_sapiens.fa	1.000	ENSP00000352925
+                chomp;
+                my ($og,$bit_score,$species,$bootstrap,$id,$bootstrap_percentage) = split(/\t/,$_);
+                
+				# if gene is leaf
+				# defined gene
+				# just a hash
+				if($species =~ /\.fa$/){$species =~ s/\.fa//;}
+				my $defined_gene = { name => $id,
+									 bit_score => $bit_score,
+									 species => $species,
+									 node_type => "leaf",
+									 bootstrap => $bootstrap, 
+									 bootstrap_percentage => defined($bootstrap_percentage)?$bootstrap_percentage:"NaN"
+								 };
+                #$previous_og = $og if $previous_og eq '-1';
+                if(!defined($previous_og) || $og ne $previous_og){
+						DEBUG("making new inode with name ".$innerNode->name."$cluster_counter\n");
+						$current_cluster_root = REST::Neo4p::Node->new({name => $innerNode->name."$cluster_counter", species => $innerNode->name, node_type =>'inode', cluster_root => 'yes'}); # make new node
+						$cluster_roots->add_entry($current_cluster_root,name => $innerNode->name."$cluster_counter", species => $innerNode->name, node_type =>'inode' ); # add to cluster_roots
+							$cluster_counter++;
+				}
+						# make new gene and connect it
+							DEBUG("Looking at gene ".$defined_gene->{name});
+							my ($gene_name, $bootstrap_score, $inparalog_score) = ($defined_gene->{name}, $defined_gene->{bootstrap}, $defined_gene->{inparalog});
+							my ($found_inode) = $cluster_roots->find_entries(name => $gene_name);
+							DEBUG("Checking if one of the cluster members if a cluster root itself ");
+							if($found_inode){
+								## one of the cluster member is a cluster root, i.e. internal node itself
+								# so we delete it from the cluster_root index
+								$cluster_roots->remove_entry($found_inode);
+								$found_inode->set_property({cluster_root => "no"});
+								my ($find_again_inode) = $cluster_roots->find_entries(name => $gene_name);
+								if($find_again_inode){
+									DEBUG("shit, found inode in cluster_roots again");
+								}
+								else{
+									DEBUG("nice, inode has been removed from cluster_roots");
+								}
+								# change found_node
+									DEBUG("connect  ".$found_inode->get_property('name')." to ".$current_cluster_root->get_property('name')." with type ".$found_inode->get_property('node_type')."  still cluster_root: ".$found_inode->get_property('cluster_root')."\n");
+									$tree_types->add_entry($found_inode->relate_to($current_cluster_root, 'is_child_of'), 	
+																		'tree_type' => 'is_child', 
+																		'bootstrap' => $bootstrap_score, 
+																		'inparalog_score' => $inparalog_score, 
+																		node_type => "inode");	
+								DEBUG("yes ");
+							}
+							else{ DEBUG("no ");
+										my $new_gene = REST::Neo4p::Node->new($defined_gene);
+										DEBUG("Created new node, name:  ".$defined_gene->{name});
+										$tree_types->add_entry($new_gene->relate_to($current_cluster_root, 'is_child_of'), 	
+																		'tree_type' => 'is_child', 
+																		'bootstrap' => $bootstrap_score, 
+																		'inparalog_score' => $inparalog_score, 
+																		node_type => "leaf");	
+							}
+							DEBUG("Finished dealing with ".$gene_name);
+                        	$previous_og = $og;
+        }       
+        #print "\n\n";
+        ##### LAST ENTRY - END
+        close $INPUT_FH or die "Couldn't close '".$innerNode->orthologGroups->originalOrthologyPredictionFile."': $!\n";
+
+		#unlink($innerNode->orthologGroups->originalOrthologyPredictionFile);
         return 1;
 }
 =item write_to_file()

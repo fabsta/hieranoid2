@@ -11,6 +11,7 @@ has 'configurationFile', is => 'rw', isa => 'Str';
 
 has 'treeFile', is => 'rw', isa => 'Str';   
 
+has 'storeType', is => 'rw', isa => 'Str';   
 
 has 'hieranoidResultsDirectory', is => 'rw', isa => 'Str';   
 has 'hieranoidProfilesDirectory', is => 'rw', isa => 'Str';   
@@ -95,6 +96,7 @@ sub BUILD {
       #$self->configurationFile($configurationFile);
       $self->sequenceInputFormat($Configuration::sequenceInputFormat);
       $self->treeFile($Configuration::treeFile);
+      $self->storeType($Configuration::storeType);
       $self->similaritySearchTool($Configuration::similaritySearchTool);
       $self->orthologyPredictionTool($Configuration::orthologyPredictionTool);
       $self->allResultsDirectory($Configuration::allResultsDirectory);
@@ -145,6 +147,7 @@ sub BUILD {
       die 'No root directory specified\n' if(!$self->rootDirectory || !-e $self->rootDirectory);
       die "No treeFile (".$self->treeFile.") specified\n" if(!$self->treeFile || ! -e $self->treeFile);
       die 'No allResultsDirectory specified\n' if(!$self->allResultsDirectory);
+      die 'No storeType  specified\n' if(!$self->storeType);
       die 'No results directory specified\n' if(!$self->hieranoidResultsDirectory);
       die 'No profiles directory specified\n' if(!$self->hieranoidProfilesDirectory);
       die 'No summarizeInformation specified\n' if(!$self->summarizeInformation);

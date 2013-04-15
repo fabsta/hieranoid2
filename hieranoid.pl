@@ -84,6 +84,8 @@ MAIN:
 	my $hieranoidConfiguration = Config->new( configurationFile => $configurationFile );
 	### LOGGING LEVEL
 	#print Dumper $hieranoidConfiguration;
+	#$hieranoidConfiguration->storeType("graph");
+	my $storeType = "graph";
 	# everything under 'error' will be reported
 	my $logFile = $hieranoidConfiguration->hieranoid_log;
 	$logFile .= ".job$jobNumber" if $jobNumber;
@@ -96,7 +98,6 @@ MAIN:
 		   file   => ">>" . $logFile
 		}
 	);
-
 	if ( $hieranoidConfiguration->tmpDir )
 	  {
 		$ENV{TMPDIR} = $hieranoidConfiguration->tmpDir;
@@ -191,7 +192,6 @@ MAIN:
 			# test existence of outgroup object
 			if ( !$innerNode->outgroupDaughter )
 			  {
-
 				#print "no outgroup object\n"
 			  }
 

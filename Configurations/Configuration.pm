@@ -33,7 +33,12 @@ push(@INC,"$rootDirectory/lib");
 	# seqxml : ".xml"
 	$sequenceInputFormat = "fa";
     
-    ## Tree File
+	
+	## File system or graph/mysql db
+	# options are: "file","graph","mysql"
+	$storeType = "graph";
+
+	## Tree File
 	# Specify guide tree file
     $treeFile = "data/tree/inparanoid10.tre";
 	#$treeFile = "species/trees/inparanoid10RefGe.tre";
@@ -109,7 +114,8 @@ push(@INC,"$rootDirectory/lib");
         # Format of orthology predictions
         # comma-separated genes: 'groupFile'
         # OrthoXML format : 'orthoxml'
-        $orthologGroupsFormat = 'groupFile';
+		# graphdb : 'graphDB'
+        $orthologGroupsFormat = 'graphDB';
         
 # Similarity Search        
 		# Tool to perform similarity searches
@@ -129,7 +135,7 @@ push(@INC,"$rootDirectory/lib");
 ### Multi-Core specific options
 	# Parallel
 	# If > 1 node is available, Hieranoid will be started parallel
-    	$available_nodes = 1;
+    	$available_nodes = 2;
     	# Time for the hieranoid master process to wait for child processes to finish
     	$wallTime = 150000;
 	## COMPUTATION ON CLUSTER	

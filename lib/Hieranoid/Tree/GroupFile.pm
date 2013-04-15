@@ -84,7 +84,7 @@ sub get_group2IDsHash{
         if any {!defined $_} $self->groupsFile;
         
         if(!-e $self->groupsFile || ! -s $self->groupsFile){
-                WARN("\tThere is no prediction file ".$self->groupsFile." (but there should be one). Exiting\n");
+                ERROR("\tThere is no prediction file ".$self->groupsFile." (but there should be one). Exiting\n");
                 exit;
         }
         ### OPENING FILE
@@ -499,5 +499,27 @@ sub write_to_file{
 	return 1;
 }
 
+sub get_cluster2genes_mappings(){
+	my ($self,$innerNode,$og_assignments_hashref) = (@_);
+	my ($self,$og_assignments_hashref) = (@_);
+	REST::Neo4p->connect('http://127.0.0.1:7474');
+	my $query = REST::Neo4p::Query->new(
+				  'START n=node(*) 
+					MATCH n-[r*]->m 
+					WHERE has(m.cluster_root) and m.cluster_root ="yes" and n.node_type <> "inode"
+					RETURN m.name as cluster_root, n.name as member;'
+  					);
+					#WHERE m.node_type = "leaf"
+	$query->execute;
+	while (my $result = $query->fetch) {
+    	my ($cluster_root, $member) = ($result->[0],$result->[1] );
+		$og_assignments_hashref->{$cluster_root} .= $member.","; 
+   	#	print "$cluster_root ",'->', "$member\n";
+	}
 
+	print "\n we found ".keys(%{$og_assignments_hashref})." cluster roots\n";
+	print Dumper $og_assignments_hashref;
+	#exit;
+	return $og_assignments_hashref;
+}
 1;

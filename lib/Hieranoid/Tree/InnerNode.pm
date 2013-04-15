@@ -61,7 +61,9 @@ sub BUILD {
         #print Dumper $self;
         # SET ORTHOLOGY GROUPS
         my $outputDirectory4Node = $self->configuration->hieranoidResultsDirectory."/".$self->name;
-        if($self->configuration->orthologGroupsFormat eq 'groupFile'){
+		if($self->configuration->orthologGroupsFormat eq 'groupFile'
+		|| $self->configuration->orthologGroupsFormat eq 'graphDB'
+		){
                 $self->orthologGroups(GroupFile->new(
                         orthologyPredictionFile => $outputDirectory4Node."/sqltable.".$self->name,
                         originalOrthologyPredictionFile => $outputDirectory4Node."/sqltable.".$self->name."_original",
@@ -159,8 +161,9 @@ sub setOutgroup{
 sub get_terminalSpeciesBelonging2Node {
         my $self = shift;
         my @terminals;
-        foreach(@{ $self->get_terminals }){
-            push(@terminals,$_->get_name);    
+        foreach(@{ $self->get_parent->get_terminals }){
+           	 print "looking at ".$_->get_name."\n";
+			 push(@terminals,$_->get_name);    
         }
         return @terminals;
 }
@@ -321,7 +324,7 @@ sub get_sequencesByID{
         my $self = shift;
         my $ID2sequencesHashRef = shift;
         my @terminalSpeciesBelonging2Node = get_terminalSpeciesBelonging2Node($self->nodeObject);
-        #print Dumper @terminalSpeciesBelonging2Node;
+        print Dumper @terminalSpeciesBelonging2Node;
         my %iD2SequenceHash;
         my $species_sequence_file;
         SPECIES_TO_ADD:
@@ -343,7 +346,7 @@ sub get_sequencesByID{
                 else {
                                 # FASTA FILE
                         $species_sequence_file = $self->fileInformation->speciesFilesDirectory."/".$current_species.".fa";
-                     #   print "$current_species ".$self->fileInformation->sequenceInputFormat." ($species_sequence_file)\n";
+                        print "$current_species ".$self->fileInformation->sequenceInputFormat." ($species_sequence_file)\n";
                         if(! -e $species_sequence_file && ! -s $species_sequence_file){
                                 next SPECIES_TO_ADD;
                         }
