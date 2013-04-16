@@ -244,11 +244,10 @@ sub alignAndConsense{
                                 my $parallelSimilaritySearch = $self->configuration->perl." $0 -j $_ -n ".$parentNode->name." -a summarize -c ".$self->configuration->configurationFile."";
                                 print "\t$parallelSimilaritySearch\n";
                                 if($self->configuration->computationMode eq 'cluster'){
-									
-                                       write_to_file({text => $parallelSimilaritySearch, file_name => $bsub_file}); 
-									   my $submit_cmd = $self->configuration->sshCluster." -J Hieranoid.$job_number   $bsub_file";
-									   system($submit_cmd);
-										
+										my $fh = IO::File->new();
+		                                $fh->open( "| bsub  -o Hieranoid_$job_number -JHieranoid_OS_$job_number -R \"select[mem>1000] rusage[mem=1000]\" -M 1000000") or die "Couldn't open file handle\n";
+                                        $fh->print( "$parallelSimilaritySearch\n"); 
+                                        $fh->close;	
                                 }
                                 else{
 									system("$parallelSimilaritySearch &");

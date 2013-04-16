@@ -322,15 +322,16 @@ sub start{
         							my ($bsub_fh, $bsub_file) = tempfile(UNLINK => 0);
                                     print "\tstart sub process $_\n";
 									my $job_number = $_;
+                                    $bsub_file = getcwd()."/Hieranoid.$job_number"; 
                                 	my $parallelSimilaritySearch = $self->configuration->perl." $0 -j $_ -n ".$self->nodeObject->name." -a orthologySearch -c ".$self->configuration->configurationFile.""; 
                                 	print "\t$parallelSimilaritySearch\n";
                                 	if($self->configuration->computationMode eq 'cluster'){
-									
-                                       write_to_file({text => $parallelSimilaritySearch, file_name => $bsub_file}); 
-									   my $submit_cmd = $self->configuration->sshCluster." -J Hieranoid.OS.$job_number   $bsub_file";
-									   print "$submit_cmd\n";
-										system($submit_cmd);
-										
+                						my $fh = IO::File->new();
+		                                $fh->open( "| bsub  -o Hieranoid_$job_number -JHieranoid_OS_$job_number -R \"select[mem>1000] rusage[mem=1000]\" -M 1000000") 
+												or die "Couldn't open file handle\n";
+                                        $fh->print( "$parallelSimilaritySearch\n"); 
+                                        $fh->close;	
+                                        #die "we are stopping here\n";
                                 	}
                                 	else{
 										system("$parallelSimilaritySearch &");
